@@ -1,3 +1,8 @@
+# This Docker compose stack requires secrets in Komo.do:
+# - GRAFANA_DOMAIN
+# - AUTHENTIK_DOMAIN
+# - GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+# - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
 ---
 services:
   prometheus:
