@@ -5,6 +5,7 @@
 # - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
 ---
 services:
+
   prometheus:
     image: docker.io/prom/prometheus:v3.1.0
     container_name: prometheus
@@ -55,7 +56,7 @@ services:
       - "traefik.http.routers.grafana-secure.rule=Host(`${GRAFANA_DOMAIN}`)"
       - "traefik.http.routers.grafana-secure.tls=true"
       - "traefik.http.routers.grafana.service=grafana"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.docker.network=frontend"
     
   alloy:
     image: grafana/alloy:latest
@@ -83,7 +84,7 @@ services:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
-    
+
   loki:
     container_name: loki
     image: grafana/loki:3.4.2
@@ -106,6 +107,7 @@ services:
     networks:
       - default
       # - frontend
+
   node_exporter:
     image: quay.io/prometheus/node-exporter:v1.9.0
     container_name: node_exporter
