@@ -27,7 +27,11 @@ services:
       - "3080:3000"
     volumes:
       - /mnt/data/appdata/grafana:/var/lib/grafana
+<<<<<<< HEAD
     # env_file: .env
+=======
+    #env_file: .env
+>>>>>>> d865aecd85e60b5e974b7360178634ee0ba9550b
     environment:
       GF_SERVER_ROOT_URL: "https://${GRAFANA_DOMAIN}"
       GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
@@ -104,10 +108,17 @@ services:
     #   - "traefik.http.services.loki.loadbalancer.server.port=3100"
       # - "traefik.http.routers.loki.middlewares=authentik@file"
     restart: unless-stopped
+<<<<<<< HEAD
     networks:
       - default
       # - frontend
     
+=======
+    # networks:
+    #   - frontend
+    #privileged: true
+
+>>>>>>> d865aecd85e60b5e974b7360178634ee0ba9550b
   node_exporter:
     image: quay.io/prometheus/node-exporter:v1.9.0
     container_name: node_exporter
@@ -142,7 +153,6 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
-    # privileged: true
     devices:
       - /dev/kmsg:/dev/kmsg
     privileged: true
