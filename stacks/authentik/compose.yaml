@@ -1,0 +1,129 @@
+---
+services:
+
+  # Authentik server
+  authserver:
+    container_name: authserver
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2024.12.3}
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: server      
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - /mnt/data/appdata/authentik/config:/config:rw
+      - /mnt/data/appdata/authentik/media:/media:rw
+      - /mnt/data/appdata/authentik/custom-templates:/templates:rw
+    ports:
+      - "${COMPOSE_PORT_HTTP:-9000}:9000"
+      - "${COMPOSE_PORT_HTTPS:-9443}:9443"
+    environment:
+      TZ: Europe/Amsterdam
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik_user}
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik_db}
+      AUTHENTIK_POSTGRESQL__PORT: 5432
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS:?PostgresQL password required}
+      AUTHENTIK_SECRET_KEY: ${SECRET_KEY:?Authentik secret key required}
+      AUTHENTIK_BOOTSTRAP_PASSWORD: emJ1UHlhbzQ9cF9CQj1QWWVtXi1DQw==
+      AUTEHNTIK_BOOTSTRAP_EMAIL: ron@moerman.online
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authentik.entrypoints=http"
+      - "traefik.http.routers.authentik.rule=Host(`auth.moerman.online`)"
+      - "traefik.http.middlewares.authentik-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.authentik.middlewares=authentik-https-redirect"
+      - "traefik.http.routers.authentik-secure.entrypoints=https"
+      - "traefik.http.routers.authentik-secure.rule=Host(`auth.moerman.online`)"
+      - "traefik.http.routers.authentik-secure.tls=true"
+      - "traefik.http.routers.authentik.service=authentik"
+      - "traefik.http.services.authentik.loadbalancer.server.port=9000"
+      - "traefik.docker.network=frontend"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Authentik worker
+  worker:
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2024.12.3}
+    container_name: authworker
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik_user}
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik_db}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS:?database password required}
+      AUTHENTIK_SECRET_KEY: ${SECRET_KEY:?Authentik secret key required}
+    # `user: root` and the docker socket volume are optional.
+    # See more for the docker socket integration here:
+    # https://goauthentik.io/docs/outposts/integrations/docker
+    # Removing `user: root` also prevents the worker from fixing the permissions
+    # on the mounted folders, so when removing this make sure the folders have the correct UID/GID
+    # (1000:1000 by default)
+    user: root
+    networks:
+      - backend
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/data/appdata/authentik/media:/media
+      - /mnt/data/appdata/authentik/certs:/certs
+      - /mnt/data/appdata/authentik/custom-templates:/templates
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Postgresql database
+  postgresql:
+    container_name: postgresql
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    networks:
+      - backend
+    environment:
+      POSTGRES_DB: ${PG_DB:-authentik_db}
+      POSTGRES_USER: ${PG_USER:-authentik_user}
+      POSTGRES_PASSWORD: ${PG_PASS:?database password required}
+    volumes:
+      - /mnt/data/appdata/authentik/db:/var/lib/postgresql/data
+
+  # Redis cache
+  redis:
+    image: docker.io/library/redis:alpine
+    container_name: redis
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+      - /mnt/data/appdata/authentik/redis:/data
+    networks:
+      - backend
+
+networks:
+  backend:
+    external: true
+  frontend:
+    external: true
