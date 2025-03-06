@@ -16,6 +16,8 @@ services:
       - ./config/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
       - /mnt/data/appdata/prometheus:/prometheus:rw
     restart: unless-stopped
+    networks:
+      - default
 
   grafana:
     image: docker.io/grafana/grafana-oss:11.5.2
@@ -25,16 +27,16 @@ services:
       - "3080:3000"
     volumes:
       - /mnt/data/appdata/grafana:/var/lib/grafana
-    env_file: .env
+    # env_file: .env
     environment:
-      GF_SERVER_ROOT_URL: "https://[[GRAFANA_DOMAIN]]"
+      GF_SERVER_ROOT_URL: "https://${GRAFANA_DOMAIN}"
       GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
       GF_AUTH_GENERIC_OAUTH_NAME: "authentik"
       GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
-      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://[[AUTHENTIK_DOMAIN]]/application/o/authorize/"
-      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://[[AUTHENTIK_DOMAIN]]/application/o/token/"
-      GF_AUTH_GENERIC_OAUTH_API_URL: "https://[[AUTHENTIK_DOMAIN]]/application/o/userinfo/"
-      GF_AUTH_SIGNOUT_REDIRECT_URL: "https://[[AUTHENTIK_DOMAIN]]/application/o/grafana/end-session/"
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: "https://${AUTHENTIK_DOMAIN}/application/o/authorize/"
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "https://${AUTHENTIK_DOMAIN}/application/o/token/"
+      GF_AUTH_GENERIC_OAUTH_API_URL: "https://${AUTHENTIK_DOMAIN}/application/o/userinfo/"
+      GF_AUTH_SIGNOUT_REDIRECT_URL: "https://${AUTHENTIK_DOMAIN}/application/o/grafana/end-session/"
       GF_AUTH_GENERIC_OAUTH_TLS_SKIP_VERIFY_INSECURE: "true"
       # Optionally enable auto-login (bypasses Grafana login screen)
       GF_AUTH_OAUTH_AUTO_LOGIN: "true"
@@ -47,21 +49,22 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.entrypoints=http"
-      - "traefik.http.routers.grafana.rule=Host(`[[GRAFANA_DOMAIN]]`)"
+      - "traefik.http.routers.grafana.rule=Host(`${GRAFANA_DOMAIN}`)"
       - "traefik.http.middlewares.grafana-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.grafana.middlewares=grafana-https-redirect"
       - "traefik.http.routers.grafana-secure.entrypoints=https"
-      - "traefik.http.routers.grafana-secure.rule=Host(`[[GRAFANA_DOMAIN]]`)"
+      - "traefik.http.routers.grafana-secure.rule=Host(`${GRAFANA_DOMAIN}`)"
       - "traefik.http.routers.grafana-secure.tls=true"
       - "traefik.http.routers.grafana.service=grafana"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-
+    
   alloy:
     image: grafana/alloy:latest
     container_name: alloy
     volumes:
       - ./config/config.alloy:/etc/alloy/config.alloy
-      - /var/log:/var/log:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /var/log/samba:/var/log/samba:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - 12345:12345
@@ -76,7 +79,12 @@ services:
     networks:
       - frontend
       - default
-
+    privileged: true
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    
   loki:
     container_name: loki
     image: grafana/loki:3.4.2
@@ -96,10 +104,10 @@ services:
     #   - "traefik.http.services.loki.loadbalancer.server.port=3100"
       # - "traefik.http.routers.loki.middlewares=authentik@file"
     restart: unless-stopped
-    # networks:
-    #   - frontend
-    privileged: true
-
+    networks:
+      - default
+      # - frontend
+    
   node_exporter:
     image: quay.io/prometheus/node-exporter:v1.9.0
     container_name: node_exporter
@@ -117,7 +125,12 @@ services:
       - --collector.processes
     # pid: host
     restart: unless-stopped
-
+    privileged: true
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    
   cadvisor:
     image: gcr.io/cadvisor/cadvisor
     container_name: cadvisor
