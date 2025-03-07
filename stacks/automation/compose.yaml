@@ -4,6 +4,7 @@ services:
     container_name: home-assistant
     image: homeassistant/home-assistant:2025.2
     restart: unless-stopped
+    env_file: .env
     networks:
       - frontend
       - backend
@@ -42,6 +43,8 @@ services:
     env_file: .env
     environment:
       POSTGRES_DB: ${HOME_ASSISTANT_PG_DB}
+      POSTGRES_PASSWORD: ${HOME_ASSISTANT_PG_PASSWORD}
+      POSTGRES_USER: ${HOME_ASSISTANT_PG_USER}
     volumes:
       - /mnt/data/appdata/ha/db:/var/lib/postgresql/data
     healthcheck:
