@@ -1,0 +1,64 @@
+---
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    user: 1000:1000
+    env_file: .env
+    environment:
+      JELLYFIN_FFmpeg__probesize: 10000000
+      JELLYFIN_FFmpeg__analyzeduration: 10000000
+      JELLYFIN_PublishedServerUrl: https://${JELLYFIN_DOMAIN}
+      TZ: Europe/Amsterdam
+    volumes:
+      - /mnt/data/appdata/jellyfin/config:/config:rw
+      - /mnt/data/appdata/jellyfin/cache:/cache:rw
+      - /mnt/data/media:/media:rw
+    restart: unless-stopped
+    ports:
+      - 8096:8096
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyfin.entrypoints=http"
+      - "traefik.http.routers.jellyfin.rule=Host(`${JELLYFIN_DOMAIN}`)"
+      - "traefik.http.middlewares.jellyfin-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.jellyfin.middlewares=jellyfin-https-redirect"
+      - "traefik.http.routers.jellyfin-secure.entrypoints=https"
+      - "traefik.http.routers.jellyfin-secure.rule=Host(`${JELLYFIN_DOMAIN}`)"
+      - "traefik.http.routers.jellyfin-secure.tls=true"
+      - "traefik.http.middlewares.jellyfin-mw.headers.customResponseHeaders.X-Robots-Tag=noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex"
+      - "traefik.http.routers.jellyfin.service=jellyfin"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+    networks:
+      - frontend
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    env_file: .env
+    environment:
+      # - LOG_LEVEL=debug
+      - TZ=Europe/Amsterdam
+    volumes:
+      - /mnt/data/appdata/jellyseerr:/app/config:rw
+    ports:
+      - 5055:5055
+    restart: unless-stopped
+    networks:
+      - frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyseerr.entrypoints=http"
+      - "traefik.http.routers.jellyseerr.rule=Host(`${JELLYSEERR_DOMAIN}`)"
+      - "traefik.http.middlewares.jellyseerr-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.jellyseerr.middlewares=jellyseerr-https-redirect"
+      - "traefik.http.routers.jellyseerr-secure.entrypoints=https"
+      - "traefik.http.routers.jellyseerr-secure.rule=Host(`${JELLYSEERR_DOMAIN}`)"
+      - "traefik.http.routers.jellyseerr-secure.middlewares=authentik@file"
+      - "traefik.http.routers.jellyseerr-secure.tls=true"
+      - "traefik.http.routers.jellyseerr.service=jellyseerr"
+      - "traefik.http.services.jellyseerr.loadbalancer.server.port=5055"
+
+networks:
+  frontend:
+    external: true
