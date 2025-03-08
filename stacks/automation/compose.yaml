@@ -2,7 +2,7 @@ services:
 
   init-ha:
     container_name: init-ha
-    image: debian:bulseye-slim
+    image: debian:stable-slim
     restart: "no"
     entrypoint: ["/bin/bash", "-c"]
     command: ["cp -f /setup/configuration.yaml /config && chmod +x /setup/get-hacs.sh && /setup/get-hacs.sh"]
