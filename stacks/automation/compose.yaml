@@ -1,5 +1,19 @@
 services:
 
+  init-ha:
+    container_name: init-ha
+    image: debian:bulseye
+    restart: "no"
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["cp -f /setup/configuration.yaml /config && chmod +x /setup/get-hacs.sh && /setup/get-hacs.sh"]
+    env_file: .env
+    volumes:
+      - /mnt/data/appdata/ha/config:/config:rw
+      - /mnt/data/appdata/ha/media:/media:rw
+      - ./config:/setup:ro
+    networks:
+      - backend
+  
   home-assistant:
     container_name: home-assistant
     image: homeassistant/home-assistant:2025.2
@@ -13,6 +27,12 @@ services:
       - /mnt/data/appdata/ha/media:/media:rw
     depends_on:
       - postgres-ha
+      - init-ha
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8123"]
+    #   interval: 1m
+    #   timeout: 10s
+    #   retries: 3
     ports:
       - 8123:8123
       - 1400:1400
