@@ -1,2 +1,2 @@
 # homeserver
-Jellyfin and Jellyseerr stacj managed with Komo.do.
+Jellyfin and Jellyseerr stack managed with Komo.do.
