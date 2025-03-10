@@ -1,5 +1,6 @@
 ---
 services:
+
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin
